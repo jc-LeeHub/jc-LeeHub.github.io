@@ -100,10 +100,10 @@ service-worker: true
 friends: [
     {
         title: "知乎",
-        href: "https://www.zhihu.com/people/yu-yi-chu-shi"
+        href: "yu-yi-chu-shi"
     },{
         title: "简书·BY",
-        href: "http://www.jianshu.com/u/e71990ada2fd"
+        href: "https://www.jianshu.com/u/a188cd5bbddf"
     },{
         title: "Apple",
         href: "https://apple.com"
