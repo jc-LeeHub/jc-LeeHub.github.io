@@ -1,0 +1,222 @@
+---
+layout:     post
+title:      ARC 与 MRC 混合使用
+subtitle:   MRC 库的处理
+date:       2020-11-03
+author:     BY
+header-img: img/post-bg-cook.jpg
+catalog: true
+tags:
+    - iOS
+---
+ 
+## SVM
+**Support Vector Machine**
+
+## 前言
+> 在深度学习变得火热之前，SVM是最受欢迎的模型，因为SVM有充分的数学原理支撑，并且可得到全局最优解 (使用梯度下降的线性模型只能得到局部最优解) ，一般用于处理二分类任务，SVM是定义在特征空间上的间隔最大的线性分类器，学习策略就是使间隔最大化。
+
+## 1 导读
+本文是博主看过大量资料之后对SVM做的总结，从初学者的角度、以易理解的方式进行全面介绍，跟着文章手动推导一遍，打通你的任督二脉。
+
+SVM涉及的知识比较多，混起来讲不易理解。本文将解耦开来进行介绍，文章结构如下：
+
+1> 硬间隔SVM：基础版本的SVM，不涉及其他优化技术；
+2> 软间隔SVM：赋予SVM容错能力的优化版本；
+3> 核技巧：解决SVM在低维空间对样本不可分问题；
+
+下面进入正题....
+
+## 2 原理
+本文原理推导围绕硬间隔SVM进行展开，加了软间隔与核技巧的SVM原理与之雷同。
+
+**2.1 基本概念**
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927102541420.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NTY1ODEzMQ==,size_16,color_FFFFFF,t_70#pic_center)两类样本点的分布如上图所示，位于中间位置的实线 H 是最优分割面，在其两侧与与之平行的两条虚线 H1、H2，虚线之间的垂直距离就是最大化目标—间隔，位于两虚线上的样本点称为支持向量。
+
+**2.2 问题定义**
+
+**超平面的数学表达：**(二维空间中的超平面)
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927112426463.png#pic_center)
+
+超平面在空间中的位置可由 W 和 b 决定。
+
+**间隔的数学表达：**
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927104837243.png#pic_center)
+d 表示**离超平面最近的样本 x (支持向量)** 到超平面的垂直距离，间隔则等于2倍的 d ，所以得到最大化目标为 2d，为了简化优化目标，省略常数项2，即最大化目标为 d。
+
+于是我们有了整个问题的目标函数：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927105553335.png#pic_center)
+找到使得间隔 d 最大的 W 与 b ，即最优超平面。
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927105953619.png#pic_center)
+**约束的数学表达：**
+
+求解该目标函数之前，应该遵循一个约束，就是要保证所有样本点都分类正确 (硬间隔SVM)。即位于超平面上方的样本点标签为1，位于下方的样本点标签为-1。
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927110341982.png#pic_center)
+该约束相当于是对 W 与 b 解空间的一个约束，相当于线性模型中加入的正则项，对权重大小进行约束，只不过是以不等式形式进行约束。
+
+**于是得到整个问题的目标函数及约束：**
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927105553335.png#pic_center)![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927110730175.png#pic_center)
+接下来的一大坨公式只是为了求解该目标函数进行的**化简**，化简过程中目标函数与约束条件都会随之变化，每次化简之后注意类比。得到化简的最终形式后使用SMO迭代求解即可得到最优超平面。
+
+**2.3 第一次化简**（使用约束条件对目标函数进行化简）
+
+硬间隔SVM要保证把所有样本点分类正确，所以有以下述约束。
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927110730175.png#pic_center)
+将该约束用距离来描述：**所有样本点到超平面的距离都应大于间隔 d** 。则得到约束的下述形式：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927112345738.png#pic_center)
+(不加绝对值求得的距离是有正负的，大于 d 与小于 -d 表示位于超平面两边的两类样本点)
+
+对基于距离的约束进行化简，两边同除 d 得到下式：
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927112631950.png#pic_center)
+因为分母为常数，所以可将其融入权重 w 与 b 中，并且不会影响最终的求解结果。得到下式：
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927112929508.png#pic_center)
+将两式合并得到约束的统一形式：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927112945749.png#pic_center)
+**(该约束对于所有的样本 x 都成立，不等式中的等号当且仅当x为支持向量时成立，很好理解)**
+
+得到该形式的约束条件是为了化简目标函数：
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927105553335.png#pic_center)
+我们知道，间隔 d 是支持向量到超平面的距离，所以目标函数中的 x 表示的是支持向量，而不是全部样本点。又由约束条件可知，当 x 为支持向量时等号成立，即：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927113735941.png#pic_center)
+又因为 y 等于正负1，所以：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927113838648.png#pic_center)
+目标函数化简为：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927114019725.png#pic_center)
+最优化通常为最小化目标，所以将目标函数进一步转换：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927114339839.png#pic_center)
+加平方是为了方便求导，到此第一次化简就算完成了，得到的目标函数及约束如下：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927152913347.png#pic_center)![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927152932219.png#pic_center)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927105953619.png#pic_center)
+**2.4 第二次化简** （构造同解目标函数，方便转换成对偶问题）
+
+带有不等式约束的优化问题难以求解，所以为了方便求解需要先转换成对偶问题，对偶问题的转换公式如下：
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927115301974.png#pic_center)
+目标函数跟上述形式有些不同，所以需要先将目标函数构造成 max min 的形式方便进行对偶转换。形式改变的同时要保证**与原函数保持同解，并且约束条件也保持相同**。那么要如何构造上述形式的同解函数呢？
+
+这里直接给出构造出的同解函数，然后给出与原函数同解同约束的证明。
+
+原目标函数形式如下:
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927153840962.png#pic_center)![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927154139169.png#pic_center)
+
+首先用拉格朗日乘子法，将不等式约束融入目标函数中，因为有N个约束，所以需要对所有约束进行累加。
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927115939663.png#pic_center)
+
+然后即可将原目标函数与约束转换成以下形式：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927154030856.png#pic_center)
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927155013727.png#pic_center)
+接下来是证明转换形式后的目标函数与原函数同解同约束：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927160317365.png)![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927160404555.png)![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927160605649.png)
+于是得到：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927161045248.png#pic_center)
+那么有以下等式：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927161535769.png#pic_center)
+![形式转换后与原目标函数相同，又因为](https://img-blog.csdnimg.cn/20200927161903373.png#pic_center)
+所以形式转换后的函数可等价于原函数，并且约束条件也相同，证毕。
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927105953619.png#pic_center)
+**2.5 对偶问题的引入**
+
+2.4节对原函数的形式进行转换，只是为了便于引入对偶问题。2.4节得到的目标函数如下：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927162157738.png#pic_center)
+该形式的目标函数满足强对偶关系（此处不再证明），所以可以引入其对偶问题：
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927162329583.png#pic_center)
+转换成对偶问题后，目标函数就容易求解了。求解步骤如下：
+
+**1> 先求内层的最小化目标：**
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927162559173.png#pic_center)
+要求解令上式最小化的w、b，分别对w、b求偏导，然后令偏导数为0，得到的结果带入上式即可得到极小值。
+
+先对b求导：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927162820745.png#pic_center)
+将结果代入函数进行化简：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927163156263.png#pic_center)
+(第三项累加因为多乘了xi，所以不一定为0)
+
+再对w求导：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927163337405.png#pic_center)
+代入目标函数进行化简：
+![ji](https://img-blog.csdnimg.cn/20200927164011160.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NTY1ODEzMQ==,size_16,color_FFFFFF,t_70#pic_center)
+上式化简得到的结果即为内层 min 的结果。
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927164214751.png#pic_center)
+
+
+**2>再求外层最大化目标：**
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927164240975.png#pic_center)
+(化简过程中产生的约束条件也应加入进来，作为KKT条件)
+
+取负号转换成求最小值：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927164634524.png#pic_center)
+然后使用 [SMO](https://zhuanlan.zhihu.com/p/29212107) 求解即可， SMO每次更新两个参数 $\lambda$，其他的都当作常数项，依次重复进行，直到所有参数收敛。
+
+通过SMO迭代求解得到所有的 $\lambda_{i}$ 之后，再通过下式得到w与b，即得到了最优超平面。
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927165434281.png#pic_center)
+到此，硬间隔SVM的原理推导就结束了，公式很多，但是不难，细细咀嚼推导一遍即可掌握。
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927105953619.png#pic_center)
+## 3 软间隔与核技巧
+**3.1 软间隔**
+
+软间隔是允许SVM存在分错的样本，但是要控制其错误数量尽可能的少。所以软间隔SVM引入了一个描述分错样本数量的损失，加入了目标函数共同进行优化。
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927172500372.png#pic_center)
+$\xi_{i}$ 表示Hinge loss，用于量化样本的被分类错误的程度，C为超参数，控制SVM允许出错的程度，C越大，容许的错误$\xi_{i}$ 必须越小，模型越严格，反之亦然。
+
+软间隔SVM的原理推导同硬间隔SVM，只是在目标函数中多了一个正则项。
+
+**[注]：对于软间隔SVM，在间隔内的点同样可以影响超平面的位置，所以也属于支持向量。**
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927105953619.png#pic_center)
+**3.2 核技巧**
+
+之前介绍的硬间隔和软间隔都是指样本完全线性可分或者大部分样本点线性可分的情况，但是可能存在一种情况是样本点不再线性可分，比如二维空间中环形分布的数据点。
+
+解决方法就是：**将二维线性不可分样本点映射到高维空间中，让样本点在高维空间线性可分。**
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927173039791.png#pic_center)![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927173045585.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NTY1ODEzMQ==,size_16,color_FFFFFF,t_70#pic_center)
+但是将样本从低维映射到高维之后，维度可能很大，也可能是无限维，此时计算两两样本的点乘，计算量太大。所以引入核函数 k(xi, xj) 来表示映射之后内积的结果，而不再将x显式的分别映射成高维向量，再去计算点积，引入核函数可以有效降低计算量。
+
+**常见核函数：**
+
+线性核函数：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927173207345.png#pic_center)
+多项式核函数：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927173248222.png#pic_center)
+高斯核函数：(存在需要调整的超参数)
+![在这里插入图片描述](https://img-blog.csdnimg.cn/2020092717331571.png#pic_center)
+
+## 4 总结
+**SVM容易产生疑问的点：**
+
+**1 为什么一次要更新两个参数？**
+
+因为存在一个KKT约束为：
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927165037546.png#pic_center)
+其中 y 取值为正负1，所以参数 $\lambda$ 两两之间不是相互独立的，它们呈线性相关，一个参数的变化会引起另一个参数变化，所以需要一次更新两个参数。
+
+**2 为什么说最优超平面仅由支持向量决定？**
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927171120163.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3dlaXhpbl80NTY1ODEzMQ==,size_16,color_FFFFFF,t_70#pic_center)
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927105953619.png#pic_center)
+**SVM优缺点：**
+
+> 优点： 
+> 1> 有严格的数学理论支撑，SVM是一个凸优化问题，所以求得的解一定是全局最优而不是局部最优;
+> 2> 引入核函数后可处理线性与非线性可分的二分类任务;
+> 3> 最优超平面只由少数的支持向量所确定，计算的复杂性取决于支持向量的数目。
+
+> 缺点：
+> 1> 训练时间长，采用SMO算法求解目标函数时，每次都需要挑选一对参数，固定其他参数进行优化，因此时间复杂度为O(n^2)，其中n为训练样本的数量, 因此SVM只适合数据量较少的任务。
+> 2> SVM只适用于二分类，但是可通过组合多个SVM来处理多分类任务，同时推广的SVR也可处理回归任务。
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200927105953619.png#pic_center)
+码字不易，如果感觉有收获的话，就请点个赞吧~
+万分感谢~
